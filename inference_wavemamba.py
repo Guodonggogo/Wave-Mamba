@@ -17,13 +17,21 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 lpips = LearnedPerceptualImagePatchSimilarity(net_type='alex')
 
-#from skimage.metrics import structural_similarity as ssim
-#from skimage.metrics import peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim_func
+from skimage.metrics import peak_signal_noise_ratio as psnr_func
 
-from comput_psnr_ssim import calculate_ssim as ssim_gray
-from comput_psnr_ssim import calculate_psnr as psnr_gray
+#from comput_psnr_ssim import calculate_ssim as ssim_gray
+#from comput_psnr_ssim import calculate_psnr as psnr_gray
 
 import torch.nn.functional as F
+
+def ssim_psnr_gray(im_pd, im_gt):
+    gray_im_pd = cv2.cvtColor(im_pd, cv2.COLOR_BGR2GRAY)
+    gray_im_gt = cv2.cvtColor(im_gt, cv2.COLOR_BGR2GRAY)
+    return ssim_func(gray_im_pd, gray_im_gt), psnr_func(gray_im_pd, gray_im_gt)
+
+
+
 
 def check_image_size(x,window_size=128):
     _, _, h, w = x.size()
@@ -47,14 +55,14 @@ def main():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', type=str,
-                        default='/home/ywp/zwb/LOLv1/eval15/low',
+                        default='LOLv1/eval15/low',
                         help='Input image or folder')
 
     parser.add_argument('-g', '--gt', type=str,
-                        default='/home/ywp/zwb/LOLv1/eval15/high',
+                        default='LOLv1/eval15/high',
                         help='groundtruth image')
     parser.add_argument('-w', '--weight', type=str,
-                        default='/home/zwb/code/WaveMamba/ckpt/WaveMamba_LOLv1.pth',
+                        default='./ckpt/WaveMamba_LOLv1.pth',
                         help='path for model weights')
 
     parser.add_argument('-o', '--output', type=str, default='results/WaveMamba_UHDLL', help='Output folder')
@@ -113,8 +121,7 @@ def main():
         output_img = tensor2img(output) 
         gray = True
 
-        ssim = ssim_gray(output_img, gt_img) 
-        psnr = psnr_gray(output_img, gt_img) 
+        ssim, psnr = ssim_psnr_gray(output_img, gt_img) 
         lpips_value = lpips(2 * torch.clip(img2tensor(output_img).unsqueeze(0) / 255.0, 0, 1) - 1,
                             2 * img2tensor(gt_img).unsqueeze(0) / 255.0 - 1) 
         ssim_all += ssim
