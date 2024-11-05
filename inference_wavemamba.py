@@ -59,7 +59,7 @@ def main():
                         help='Input image or folder')
 
     parser.add_argument('-g', '--gt', type=str,
-                        default='LOLv1/eval15/high',
+                        default=None,
                         help='groundtruth image')
     parser.add_argument('-w', '--weight', type=str,
                         default='./ckpt/WaveMamba_LOLv1.pth',
@@ -71,6 +71,7 @@ def main():
     parser.add_argument('--max_size', type=int, default=600,
                         help='Max image size for whole image inference, otherwise use tiled_test')
     args = parser.parse_args()
+    with_gt = args.gt is not None
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -101,10 +102,10 @@ def main():
         img_name = os.path.basename(path) 
         pbar.set_description(f'Test {img_name}')
 
-        gt_path = args.gt 
+        gt_path = args.gt
         file_name = path.split('/')[-1]
-
-        gt_img = cv2.imread(os.path.join(gt_path, file_name), cv2.IMREAD_UNCHANGED) 
+        if with_gt:
+            gt_img = cv2.imread(os.path.join(gt_path, file_name), cv2.IMREAD_UNCHANGED) 
 
         img = cv2.imread(path, cv2.IMREAD_UNCHANGED) 
         img_tensor = img2tensor(img).to(device) / 255. 
@@ -112,7 +113,7 @@ def main():
         b, c, h, w = img_tensor.size()
         print('b, c, h, w = img_tensor.size()', img_tensor.size())
         img_tensor = check_image_size(img_tensor) 
-
+        
         with torch.no_grad():
             output = EnhanceNet.restoration_network(img_tensor) 
         output = output
@@ -120,18 +121,18 @@ def main():
         output = output[:, :, :h, :w]
         output_img = tensor2img(output) 
         gray = True
-
-        ssim, psnr = ssim_psnr_gray(output_img, gt_img) 
-        lpips_value = lpips(2 * torch.clip(img2tensor(output_img).unsqueeze(0) / 255.0, 0, 1) - 1,
-                            2 * img2tensor(gt_img).unsqueeze(0) / 255.0 - 1) 
-        ssim_all += ssim
-        psnr_all += psnr
-        lpips_all += lpips_value
+        if with_gt:
+            ssim, psnr = ssim_psnr_gray(output_img, gt_img) 
+            lpips_value = lpips(2 * torch.clip(img2tensor(output_img).unsqueeze(0) / 255.0, 0, 1) - 1,
+                                2 * img2tensor(gt_img).unsqueeze(0) / 255.0 - 1) 
+            ssim_all += ssim
+            psnr_all += psnr
+            lpips_all += lpips_value
+            print('ssim', ssim)
+            print('psnr', psnr)
+            print('lpips_value', lpips_value)
         num_img += 1
-        print('num_img', num_img)
-        print('ssim', ssim)
-        print('psnr', psnr)
-        print('lpips_value', lpips_value)
+        print(f"num_img {num_img}")
         save_path = os.path.join(args.output, f'{img_name}')
         imwrite(output_img, save_path) 
 

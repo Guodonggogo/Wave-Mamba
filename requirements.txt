@@ -1,3 +1,4 @@
+#conda install conda-forge::cudatoolkit-dev
 addict
 future
 lmdb
@@ -12,6 +13,6 @@ tb-nightly
 tqdm
 yapf
 pyiqa
-causal_conv1d
-mamba_ssm
+causal_conv1d==1.1.0
+mamba_ssm==1.1.4
 torchmetrics
